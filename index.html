@@ -1,0 +1,903 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>World of Gaileia</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+
+<style>
+html, body { height:100%; margin:0; }
+#map { height:100%; width:100%; background:#000; }
+
+@font-face {
+  font-family: "Macondo Swash Caps";
+  src: url("fonts/MacondoSwashCaps-Regular.woff2") format("woff2");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+body,
+.side-panel,
+.side-panel * {
+  font-family: "Macondo Swash Caps", system-ui, sans-serif !important;
+}
+
+html, body, #map {
+  font-family: "Macondo Swash Caps", system-ui, sans-serif;
+}
+
+.leaflet-container,
+.leaflet-control,
+.leaflet-control-layers,
+.leaflet-popup,
+.leaflet-tooltip,
+.leaflet-bar,
+.leaflet-control-zoom,
+.ruler-label,
+.ruler-total-tooltip,
+.side-panel {
+  font-family: "Macondo Swash Caps", system-ui, sans-serif !important;
+}
+
+.leaflet-popup-content,
+.leaflet-tooltip {
+  font-size: 14px;
+  line-height: 1.4;
+}
+
+.ruler-label {
+  background: rgba(0,0,0,.7);
+  color:#fff;
+  padding:2px 6px;
+  border-radius:8px;
+  font-size: 12px;
+  white-space:nowrap;
+  pointer-events:none;
+}
+
+.ruler-total-tooltip {
+  background: rgba(0,0,0,.8) !important;
+  color:#fff !important;
+  border-radius:10px;
+  padding:4px 8px;
+  font-size: 12px;
+}
+
+
+.side-panel.open{
+  transform: translateX(0);
+}
+
+.side-panel__header {
+  position: relative;
+  display: flex;
+  align-items: center;
+  padding: 14px 14px 10px 14px;
+}
+
+.side-panel__title {
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  text-align: center;
+  font-size: 25px;
+  letter-spacing: 0.04em;
+  pointer-events: auto; /* ✅ allow selecting/copying title text */
+}
+
+/* --- Side panel close button --- */
+/* --- Side panel close sigil (single source of truth) --- */
+.side-panel__close {
+  background: none;
+  border: none;
+  padding: 0;
+  margin-left: auto;
+
+  width: 36px;
+  height: 36px;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  font-family: "Macondo Swash Caps", system-ui, sans-serif;
+  font-size: 26px;
+  line-height: 1;
+  font-weight: 400;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+
+  color: #f4e8d4;
+  cursor: pointer;
+}
+
+.side-panel__close:hover {
+  background: none; /* ✅ no visible button */
+  color: #ffd7a0;
+  text-shadow:
+    0 0 3px rgba(255, 220, 160, 0.6),
+    0 0 6px rgba(255, 200, 120, 0.4);
+}
+
+.side-panel__close:active {
+  transform: scale(0.9);
+}
+
+.side-panel__close::before {
+  content: "X"; /* your Macondo X sigil */
+  font-size: 22px;
+  display: block;
+}
+
+.side-panel__body{
+  padding: 14px;
+  overflow:auto;
+  font-size: 16px;
+  line-height: 1.45;
+}
+
+.panel-hero{
+  display:flex;
+  align-items:center;
+  gap: 12px;
+  padding: 12px;
+  border-radius: 14px;
+  background: rgba(255,255,255,0.06);
+  border: 1px solid rgba(255,255,255,0.08);
+}
+
+.panel-hero img{
+  width: 82px;
+  height: 82px;
+  object-fit: contain;
+  image-rendering: auto;
+  border-radius: 12px;
+  background: rgba(0, 0, 0, 0);
+  padding: 8px;
+}
+
+.panel-hero-title{
+  font-size: 39px;
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+.panel-hero .muted{
+  font-size: 15px;
+}
+
+.panel-hero-text{
+  display: flex;
+  flex-direction: column;
+  align-items: center;   /* horizontal centering */
+  text-align: center;    /* centers text lines */
+}
+
+.side-panel__body h3{
+  margin: 14px 0 8px 0;
+  font-size: 17px;
+  letter-spacing: .02em;
+  text-transform: capitalize;
+  opacity: 0.85;
+}
+.side-panel__body ul{ margin: 0; padding-left: 18px; }
+.side-panel__body li{ margin: 6px 0; }
+
+/* ---- Side panel typography polish ---- */
+.side-panel__title,
+.side-panel__body h3 {
+  letter-spacing: 0.03em;
+}
+
+.leaflet-control-layers {
+  z-index: 800; /* below side panel (1200), above map */
+}
+
+/* ---- Parchment panel background ---- */
+.side-panel {
+  position: fixed;
+  top: 0;
+  left: 0;
+  height: 100vh;
+  width: min(420px, 92vw);
+  z-index: 1200;
+
+  background: rgba(0, 0, 0, 0.95);
+  color: #ffffff;
+
+  box-shadow: 20px 0 50px rgba(0,0,0,0.45);
+
+  transform: translateX(-105%);
+  transition: transform 180ms ease;
+
+  display: flex;
+  flex-direction: column;
+}
+
+.side-panel__header {
+  border-bottom: 1px solid rgba(40, 22, 12, 0.18);
+}
+
+.side-panel {
+  color: #f3ead8; /* warm parchment / ivory tone */
+}
+
+/* --- Layer Control Container --- */
+.leaflet-control-layers {
+  background: rgba(0,0,0,0.78);
+  color: #fff;
+  border-radius: 14px;
+  padding: 10px 12px;
+  box-shadow: 0 10px 30px rgba(0,0,0,0.45);
+  backdrop-filter: blur(6px);
+  font-family: "Macondo Swash Caps", system-ui, sans-serif;
+}
+
+/* Expanded panel */
+.leaflet-control-layers-expanded {
+  border: none;
+}
+
+/* Section headers (Base / Overlays) */
+.leaflet-control-layers-base,
+.leaflet-control-layers-overlays {
+  margin-bottom: 8px;
+}
+
+/* Individual rows */
+.leaflet-control-layers label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 2px 2px;
+  cursor: pointer;
+  font-size: 13px;
+}
+
+/* Checkbox & radio buttons */
+.leaflet-control-layers input {
+  accent-color: #ffd166; /* modern browsers */
+  cursor: pointer;
+}
+
+/* Hover effect */
+.leaflet-control-layers label:hover {
+  background: rgba(255,255,255,0.08);
+  border-radius: 8px;
+}
+
+/* Separator line */
+.leaflet-control-layers-separator {
+  border-top: 1px solid rgba(255,255,255,0.15);
+  margin: 6px 0;
+}
+
+/* --- Zoom Control Container --- */
+.leaflet-control-zoom {
+  background: rgba(0,0,0,0.78);
+  border-radius: 14px;
+  box-shadow: 0 10px 30px rgba(0,0,0,0.45);
+  overflow: hidden; /* keeps rounded corners clean */
+  backdrop-filter: blur(6px);
+}
+
+/* --- Zoom Buttons --- */
+.leaflet-control-zoom a {
+  background: transparent;
+  color: #fff;
+  width: 36px;
+  height: 36px;
+  line-height: 36px;
+  font-size: 20px;
+  text-align: center;
+  border: none;
+  font-family: "Macondo Swash Caps", system-ui, sans-serif;
+}
+
+.leaflet-control-zoom a:hover {
+  color: #ffd166;
+}
+
+/* Remove default Leaflet borders */
+.leaflet-control-zoom a:not(:last-child) {
+  border-bottom: 1px solid rgba(255,255,255,0.12);
+}
+
+/* Hover */
+.leaflet-control-zoom a:hover {
+  background: rgba(255,255,255,0.12);
+}
+
+/* Active (click) */
+.leaflet-control-zoom a:active {
+  background: rgba(255,255,255,0.20);
+}
+
+/* Disabled state */
+.leaflet-control-zoom a.leaflet-disabled {
+  color: rgba(255,255,255,0.35);
+  pointer-events: none;
+}
+
+.side-panel__close {
+  font-family: "Macondo Swash Caps", system-ui, sans-serif;
+  font-size: 26px;          /* bigger = more sigil-like */
+  line-height: 1;
+  font-weight: 400;
+  letter-spacing: 0.15em;   /* gives it breathing room */
+  text-transform: uppercase;
+
+  width: 36px;
+  height: 36px;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.side-panel.open .side-panel__close {
+  animation: glyph-fade-in 460ms ease-out;
+}
+
+@keyframes glyph-fade-in {
+  from {
+    opacity: 0;
+    transform: scale(0.6) rotate(-12deg);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) rotate(-4deg);
+  }
+}
+
+</style>
+</head>
+
+<body>
+<div id="map"></div>
+
+<div id="sidePanel" class="side-panel" aria-hidden="true">
+  <div class="side-panel__header">
+    <div id="sidePanelTitle" class="side-panel__title"></div>
+    <button id="sidePanelClose" class="side-panel__close" aria-label="Close"></button>
+  </div>
+  <div id="sidePanelBody" class="side-panel__body"></div>
+</div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+"use strict";
+
+/* --------------------------------------------------
+   MAP SETUP
+-------------------------------------------------- */
+const imageSize = 16384;
+const minZoom = 2;
+const maxZoom = 6;
+
+const map = L.map("map", {
+  crs: L.CRS.Simple,
+  minZoom, maxZoom,
+  attributionControl:false
+});
+
+const tiles = L.tileLayer("tiles/{z}/{x}/{y}.png", {
+  minZoom, maxZoom,
+  maxNativeZoom:maxZoom,
+  tileSize:256,
+  noWrap:true
+}).addTo(map);
+
+const bounds = L.latLngBounds(
+  map.unproject([0,imageSize],maxZoom),
+  map.unproject([imageSize,0],maxZoom)
+);
+
+map.fitBounds(bounds);
+map.setMaxBounds(bounds);
+
+/* --------------------------------------------------
+   COORDINATE READOUT
+-------------------------------------------------- */
+const coord = L.control({ position: "bottomleft" });
+
+coord.onAdd = function () {
+  const div = L.DomUtil.create("div", "coord");
+  div.style.background = "rgba(0,0,0,0.75)";
+  div.style.color = "#fff";
+  div.style.padding = "6px 10px";
+  div.style.borderRadius = "10px";
+  div.style.font = "12px 'Macondo Swash Caps', system-ui, sans-serif";
+  div.style.boxShadow = "0 8px 20px rgba(0,0,0,0.35)";
+  div.innerHTML = "x: -<br>y: -";
+
+  // Prevent map drag when hovering over the control
+  L.DomEvent.disableClickPropagation(div);
+  L.DomEvent.disableScrollPropagation(div);
+
+  return div;
+};
+
+coord.addTo(map);
+
+
+/* --------------------------------------------------
+   HELPERS
+-------------------------------------------------- */
+function px(x,y){ return map.unproject([x,y],maxZoom); }
+function pxFromEvent(e){ return map.project(e.latlng,maxZoom); }
+
+//Edit-mode system for draggable markers
+// --- EDIT MODE (drag markers) ---
+const markerEdit = {
+  enabled: false,
+  btn: null,
+  markers: new Set()
+};
+
+function registerEditableMarker(marker, name) {
+  marker._placeName = name;
+  markerEdit.markers.add(marker);
+
+  // When the marker actually gets added to the map, lock/unlock it based on edit mode
+  marker.on("add", () => {
+    if (!marker.dragging) return;
+    markerEdit.enabled ? marker.dragging.enable() : marker.dragging.disable();
+  });
+
+  marker.on("dragend", () => {
+    const p = map.project(marker.getLatLng(), maxZoom);
+    console.log(`${marker._placeName} -> ${p.x.toFixed(0)}/${p.y.toFixed(0)}`);
+  });
+}
+
+function setEditMode(on) {
+  markerEdit.enabled = on;
+
+  // Auto-disable ruler when entering edit mode (recommended)
+  if (on && ruler?.enabled) {
+    ruler.enabled = false;
+    if (typeof rulerBtn !== "undefined" && rulerBtn) rulerBtn.textContent = "📏 Ruler: Off";
+  }
+
+  markerEdit.markers.forEach(m => {
+    if (!m.dragging) return;
+    on ? m.dragging.enable() : m.dragging.disable();
+  });
+
+  if (markerEdit.btn) {
+    markerEdit.btn.textContent = on ? "🗺 Drag Markers: On" : "🗺 Drag Markers: Off";
+  }
+
+  map.getContainer().style.cursor = on ? "grab" : (ruler?.enabled ? "crosshair" : "");
+}
+
+//Helper and Keybind Block
+// ------------------ KEYBOARD SHORTCUTS ------------------
+function toggleRuler() {
+  ruler.enabled = !ruler.enabled;
+
+  if (rulerBtn) {
+    rulerBtn.textContent = ruler.enabled ? "📏 Ruler: On" : "📏 Ruler: Off";
+  }
+
+  // If turning ruler ON, it’s usually best to disable edit mode
+  if (ruler.enabled && markerEdit?.enabled) {
+    setEditMode(false);
+  }
+
+  map.getContainer().style.cursor = ruler.enabled ? "crosshair" : (markerEdit.enabled ? "grab" : "");
+}
+
+function isTypingInField(e) {
+  const el = e.target;
+  if (!el) return false;
+  const tag = el.tagName?.toLowerCase();
+  return tag === "input" || tag === "textarea" || el.isContentEditable;
+}
+
+window.addEventListener("keydown", (e) => {
+  if (isTypingInField(e)) return; // don’t trigger shortcuts while typing
+
+  // Optional: ignore if user is holding Ctrl/Alt/Meta (avoids conflicts)
+  if (e.ctrlKey || e.altKey || e.metaKey) return;
+
+  const k = e.key.toLowerCase();
+
+  if (k === "e") {
+    e.preventDefault();
+    setEditMode(!markerEdit.enabled);
+    return;
+  }
+
+  if (k === "r") {
+    e.preventDefault();
+    toggleRuler();
+    return;
+  }
+});
+
+
+/* --------------------------------------------------
+   PANES
+-------------------------------------------------- */
+map.createPane("overlayPane");
+map.getPane("overlayPane").style.zIndex = 450;
+
+map.createPane("rulerPane");
+map.getPane("rulerPane").style.zIndex = 650;
+
+/* --------------------------------------------------
+   TILE OVERLAYS
+-------------------------------------------------- */
+const loomRoadOverlay = L.tileLayer("tiles_loom_road/{z}/{x}/{y}.png", {
+  minZoom,maxZoom,tileSize:256,noWrap:true,pane:"overlayPane",opacity:.4
+});
+
+const hexesOverlay = L.tileLayer("tiles_hexes/{z}/{x}/{y}.png", {
+  minZoom,maxZoom,tileSize:256,noWrap:true,pane:"overlayPane",opacity:.9
+});
+
+const cantonsOverlay = L.tileLayer("tiles_gaius_district_cantons/{z}/{x}/{y}.png", {
+  minZoom,maxZoom,tileSize:256,noWrap:true,pane:"overlayPane",opacity:.25
+});
+
+/* --------------------------------------------------
+   MARKER LAYERS
+-------------------------------------------------- */
+const capitalsLayer    = L.layerGroup();
+const settlementsLayer = L.layerGroup();
+const innspirationLayer= L.layerGroup();
+const hometownsLayer   = L.layerGroup();
+
+function icon(file,size){
+  return L.icon({
+    iconUrl:`icons/${file}.png`,
+    iconSize:[size,size],
+    iconAnchor:[size/2,size],
+    popupAnchor: [0, -size - 4]
+  });
+}
+
+const capitalIcon     = icon("capital_flag",32);
+const settlementIcon  = icon("settlement_flag",28);
+const innIcon         = icon("innspiration_flag",28);
+const hometownIcon    = icon("hometown_flag",28);
+
+function addPlace(layer, icon, name, x, y, desc) {
+  const m = L.marker(px(x,y), { icon, draggable: true })
+    .bindPopup(`<b>${name}</b><br>${desc}`)
+    .addTo(layer);
+
+  bindHoverPopup(m);
+
+  registerEditableMarker(m, name);
+
+  m.on("click", () => closePanel());
+
+  return m;
+}
+
+
+function bindHoverPopup(marker) {
+  let t = null;
+
+  marker.on("mouseover", () => {
+    t = setTimeout(() => marker.openPopup(), 80);
+  });
+
+  marker.on("mouseout", () => {
+    clearTimeout(t);
+    marker.closePopup();
+  });
+}
+
+/* --------------------------------------------------
+   PLACES (INLINE FOR NOW)
+   Later: replace with fetch("data/...")
+-------------------------------------------------- */
+
+[
+["Morel",5594,9100],["Boin",3748,7272],["Azogek",5509,6271],
+["Gaius",7035,7227],["Turonia",8774,3841],["Bandobras",7502,8179],
+["Ferumbras",9180,10825],["Iolas",10347,6481],["Nehiya",12431,11542],
+["The Cauldron",13415,8429],["Oceanside",9738,2245],["Lith-Ulihm",9894,13529]
+].forEach(c=>addPlace(capitalsLayer,capitalIcon,c[0],c[1],c[2],"Capital city"));
+
+[
+["Manikant",6993,8905],["Sava",6408,6977]
+].forEach(s=>addPlace(settlementsLayer,settlementIcon,s[0],s[1],s[2],"Settlement"));
+
+// ---------- SIDE PANEL ----------
+const sidePanel = document.getElementById("sidePanel");
+const sidePanelTitle = document.getElementById("sidePanelTitle");
+const sidePanelBody = document.getElementById("sidePanelBody");
+const sidePanelClose = document.getElementById("sidePanelClose");
+
+function openPanel(title, html) {
+  sidePanelTitle.textContent = title;
+  sidePanelBody.innerHTML = html;
+  sidePanel.classList.add("open");
+  sidePanel.setAttribute("aria-hidden", "false");
+}
+
+function closePanel() {
+  sidePanel.classList.remove("open");
+  sidePanel.setAttribute("aria-hidden", "true");
+}
+
+sidePanelClose.addEventListener("click", closePanel);
+
+// Prevent panel interactions from affecting the map
+L.DomEvent.disableClickPropagation(sidePanel);
+L.DomEvent.disableScrollPropagation(sidePanel);
+
+const innMarker = L.marker(px(6993, 7246), { icon: innIcon, draggable: true }).addTo(innspirationLayer);
+registerEditableMarker(innMarker, "Innspiration");
+
+innMarker.bindTooltip("Innspiration", {
+  direction: "top",
+  offset: [0, -30],
+  opacity: 0.95
+});
+
+// Panel only (no Leaflet popup)
+innMarker.on("click", (e) => {
+  // Stop Leaflet + DOM click from bubbling to the map (prevents immediate close)
+  L.DomEvent.stopPropagation(e);
+  e.originalEvent?.preventDefault?.();
+
+  openPanel("Guild", `
+    <div class="panel-hero">
+      <img src="lore/innspiration_emblem.png" alt="Innspiration emblem">
+      <div class="panel-hero-text">
+        <div class="panel-hero-title">Innspiration</div>
+        <div class="muted">Lisenced Guild • M.A.G.E. Certified</div>
+      </div>
+    </div>
+
+    <h3>Overview</h3>
+    <div class="muted">
+      A welcoming stop on the Loom Road where wanderers find a place to stay, loners find company, the jobless find work and alcoholics find a problem.
+    </div>
+
+    <h3>Notes</h3>
+    <ul>
+      <li>Offers the full servies of an inn</li>
+      <li>Offers entry-level contracts to general public</li>
+      <li>Provides tiered contracts and additional benefits to Guild members</li>
+    </ul>
+  `);
+});
+
+
+map.on("click", (e) => {
+  if (ruler.enabled) return; // don't close panel while measuring
+  closePanel();
+});
+
+
+[
+["Wyrdshell Enclave",6188,7075],["Kahtay",8495,8436],
+["Oceanside",9738,2245],["Impact Site",7593,6964]
+].forEach(h=>addPlace(hometownsLayer,hometownIcon,h[0],h[1],h[2],"Hometown"));
+
+/* --------------------------------------------------
+   LAYER CONTROL
+-------------------------------------------------- */
+const layersControl = L.control.layers(
+  { "Base Map": tiles },
+  {
+    "Hex Grid": hexesOverlay,
+    "Loom Road": loomRoadOverlay,
+    "Gaius District Cantons": cantonsOverlay,
+    "Capitals": capitalsLayer,
+    "Settlements": settlementsLayer,
+    "Innspiration": innspirationLayer,
+    "Hometowns": hometownsLayer
+  },
+  { collapsed:false }
+).addTo(map);
+
+function addEditButtonUnderLayersControl(layersControl) {
+  const container = layersControl.getContainer();
+
+  const btn = L.DomUtil.create("button", "");
+  markerEdit.btn = btn;
+
+  btn.type = "button";
+  btn.textContent = "🗺 Drag Markers: Off";
+  btn.style.width = "100%";
+  btn.style.marginTop = "10px";
+  btn.style.padding = "8px 10px";
+  btn.style.borderRadius = "10px";
+  btn.style.border = "0";
+  btn.style.cursor = "pointer";
+  btn.style.background = "rgba(0,0,0,0.55)";
+  btn.style.color = "#fff";
+  btn.style.boxShadow = "0 8px 20px rgba(0,0,0,0.25)";
+
+  // Critical: don’t let clicks/scrolls on the button drag/zoom the map
+  L.DomEvent.disableClickPropagation(btn);
+  L.DomEvent.disableScrollPropagation(btn);
+
+  btn.addEventListener("click", () => setEditMode(!markerEdit.enabled));
+
+  container.appendChild(btn);
+}
+
+addEditButtonUnderLayersControl(layersControl);
+
+//Ruler Controls
+let rulerBtn = null;
+
+const RulerControl = L.Control.extend({
+  options: { position: "topright" },
+
+  onAdd: function () {
+    const btn = L.DomUtil.create("button");
+    rulerBtn = btn; // <-- save reference
+
+    btn.textContent = "📏 Ruler: Off";
+    btn.style.padding = "8px 10px";
+    btn.style.borderRadius = "12px";
+    btn.style.border = "0";
+    btn.style.cursor = "pointer";
+    btn.style.background = "rgba(0,0,0,0.75)";
+    btn.style.color = "#fff";
+    btn.style.boxShadow = "0 8px 20px rgba(0,0,0,0.35)";
+
+    L.DomEvent.disableClickPropagation(btn);
+    L.DomEvent.disableScrollPropagation(btn);
+
+    L.DomEvent.on
+
+    return btn;
+  }
+});
+
+map.addControl(new RulerControl());
+
+window.addEventListener("keydown", (e) => {
+  if (e.key !== "Escape") return;
+
+  clearRuler();
+  ruler.enabled = false;
+  map.getContainer().style.cursor = "";
+
+  if (rulerBtn) rulerBtn.textContent = "📏 Ruler: Off";
+});
+
+
+map.on("contextmenu", (e) => {
+  if (!ruler.enabled) return;
+  // Prevent the browser right-click menu
+  e.originalEvent?.preventDefault?.();
+
+  ruler.points.pop();
+  updateRuler();
+});
+
+
+/* --------------------------------------------------
+   RULER (distance + days)
+-------------------------------------------------- */
+map.doubleClickZoom.disable();
+
+const ruler = { enabled:false, points:[], line:null, labels:[], anchor:null };
+
+function clearRuler() {
+  ruler.points = [];
+
+  if (ruler.line) {
+    map.removeLayer(ruler.line);
+    ruler.line = null;
+  }
+
+  ruler.labels.forEach(l => map.removeLayer(l));
+  ruler.labels = [];
+
+  if (ruler.anchor) {
+    map.removeLayer(ruler.anchor);
+    ruler.anchor = null;
+  }
+}
+
+const milesPerPixel = 2/3;
+const milesPerDay = 20;
+
+function updateRuler() {
+  // ✅ If no points, remove all ruler visuals and stop.
+  if (ruler.points.length === 0) {
+    clearRuler();
+    return;
+  }
+
+  const latlngs = ruler.points.map(p => map.unproject([p.x, p.y], maxZoom));
+
+  // Line
+  if (!ruler.line) {
+    ruler.line = L.polyline(latlngs, {
+      pane: "rulerPane",
+      color: "#ffd166",
+      weight: 3
+    }).addTo(map);
+  } else {
+    ruler.line.setLatLngs(latlngs);
+  }
+
+  // Segment labels
+  ruler.labels.forEach(l => map.removeLayer(l));
+  ruler.labels = [];
+
+  let totalPx = 0;
+
+  for (let i = 1; i < ruler.points.length; i++) {
+    const a = ruler.points[i - 1], b = ruler.points[i];
+    const d = Math.hypot(b.x - a.x, b.y - a.y);
+    totalPx += d;
+
+    const mid = { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 };
+
+    ruler.labels.push(
+      L.marker(map.unproject([mid.x, mid.y], maxZoom), {
+        pane: "rulerPane",
+        interactive: false,
+        icon: L.divIcon({
+          className: "ruler-label",
+          html: (d * milesPerPixel).toFixed(1) + " mi"
+        })
+      }).addTo(map)
+    );
+  }
+
+  // ✅ If fewer than 2 points, hide the total tooltip (no "total" yet)
+  if (ruler.points.length < 2) {
+    if (ruler.anchor) {
+      map.removeLayer(ruler.anchor);
+      ruler.anchor = null;
+    }
+    return;
+  }
+
+  // Total tooltip
+  const miles = totalPx * milesPerPixel;
+  const days = (miles / milesPerDay).toFixed(2);
+  const ll = latlngs.at(-1);
+
+  if (!ruler.anchor) {
+    ruler.anchor = L.circleMarker(ll, {
+      pane: "rulerPane",
+      radius: 1,
+      opacity: 0
+    }).addTo(map).bindTooltip(
+      `Total: ${miles.toFixed(1)} mi<br>Time: ${days} days`,
+      { permanent: true, className: "ruler-total-tooltip", direction: "top" }
+    );
+  } else {
+    ruler.anchor
+      .setLatLng(ll)
+      .setTooltipContent(`Total: ${miles.toFixed(1)} mi<br>Time: ${days} days`);
+  }
+}
+
+map.on("click",e=>{
+  if(!ruler.enabled) return;
+  ruler.points.push(pxFromEvent(e));
+  updateRuler();
+});
+
+map.on("mousemove", (e) => {
+  const el = document.querySelector(".coord");
+  if (!el) return;
+
+  const p = map.project(e.latlng, maxZoom);
+  el.innerHTML = `x: ${p.x.toFixed(0)}<br>y: ${p.y.toFixed(0)}`;
+});
+
+</script>
+</body>
+</html>
