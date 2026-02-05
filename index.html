@@ -380,24 +380,72 @@ const maxZoom = 6;
 
 const map = L.map("map", {
   crs: L.CRS.Simple,
-  minZoom, maxZoom,
-  attributionControl:false
+  minZoom,
+  maxZoom,
+  attributionControl: false
 });
 
-const tiles = L.tileLayer("tiles/{z}/{x}/{y}.png", {
-  minZoom, maxZoom,
-  maxNativeZoom:maxZoom,
-  tileSize:256,
-  noWrap:true
-}).addTo(map);
+// Optional but recommended: panes for consistent stacking order
+map.createPane("paneBase");
+map.getPane("paneBase").style.zIndex = 200;
 
+// (use overlayPane everywhere for overlays)
+map.createPane("overlayPane");
+map.getPane("overlayPane").style.zIndex = 450;
+
+// Shared options
+const baseTileOpts = {
+  minZoom,
+  maxZoom,
+  maxNativeZoom: maxZoom,
+  tileSize: 256,
+  noWrap: true,
+  pane: "paneBase"
+};
+
+const overlayTileOpts = {
+  minZoom,
+  maxZoom,
+  maxNativeZoom: maxZoom,
+  tileSize: 256,
+  noWrap: true,
+  pane: "paneOverlays"
+};
+
+// Base maps (radio buttons in layer control)
+const baseParchment = L.tileLayer(
+  "tiles/base/parchment_map/{z}/{x}/{y}.png",
+  baseTileOpts
+);
+
+const baseSatellite = L.tileLayer(
+  "tiles/base/satellite_map/{z}/{x}/{y}.png",
+  baseTileOpts
+);
+
+// Pick default base map
+baseParchment.addTo(map);
+
+// CRS.Simple bounds (same as you had)
 const bounds = L.latLngBounds(
-  map.unproject([0,imageSize],maxZoom),
-  map.unproject([imageSize,0],maxZoom)
+  map.unproject([0, imageSize], maxZoom),
+  map.unproject([imageSize, 0], maxZoom)
 );
 
 map.fitBounds(bounds);
 map.setMaxBounds(bounds);
+
+// Layer control hookup (base maps mutually exclusive)
+const baseMaps = {
+  "Parchment": baseParchment,
+  "Satellite": baseSatellite
+};
+
+const overlayMaps = {
+  "Hexes": overlayHexes,
+  "Roads": overlayLoomRoad,
+  "Cantons": overlayCantons
+};
 
 /* --------------------------------------------------
    COORDINATE READOUT
@@ -520,29 +568,19 @@ window.addEventListener("keydown", (e) => {
   }
 });
 
-
-/* --------------------------------------------------
-   PANES
--------------------------------------------------- */
-map.createPane("overlayPane");
-map.getPane("overlayPane").style.zIndex = 450;
-
-map.createPane("rulerPane");
-map.getPane("rulerPane").style.zIndex = 650;
-
 /* --------------------------------------------------
    TILE OVERLAYS
 -------------------------------------------------- */
-const loomRoadOverlay = L.tileLayer("tiles_loom_road/{z}/{x}/{y}.png", {
-  minZoom,maxZoom,tileSize:256,noWrap:true,pane:"overlayPane",opacity:.4
+const loomRoadOverlay = L.tileLayer("tiles/overlays/loom_road/{z}/{x}/{y}.png", {
+  minZoom, maxZoom, maxNativeZoom:maxZoom, tileSize:256, noWrap:true, pane:"overlayPane", opacity:.4
 });
 
-const hexesOverlay = L.tileLayer("tiles_hexes/{z}/{x}/{y}.png", {
-  minZoom,maxZoom,tileSize:256,noWrap:true,pane:"overlayPane",opacity:.9
+const hexesOverlay = L.tileLayer("tiles/overlays/hexes/{z}/{x}/{y}.png", {
+  minZoom, maxZoom, maxNativeZoom:maxZoom, tileSize:256, noWrap:true, pane:"overlayPane", opacity:.9
 });
 
-const cantonsOverlay = L.tileLayer("tiles_gaius_district_cantons/{z}/{x}/{y}.png", {
-  minZoom,maxZoom,tileSize:256,noWrap:true,pane:"overlayPane",opacity:.25
+const cantonsOverlay = L.tileLayer("tiles/overlays/gaius_district_cantons/{z}/{x}/{y}.png", {
+  minZoom, maxZoom, maxNativeZoom:maxZoom, tileSize:256, noWrap:true, pane:"overlayPane", opacity:.25
 });
 
 /* --------------------------------------------------
@@ -689,7 +727,10 @@ map.on("click", (e) => {
    LAYER CONTROL
 -------------------------------------------------- */
 const layersControl = L.control.layers(
-  { "Base Map": tiles },
+  {
+    "Parchment": baseParchment,
+    "Satellite": baseSatellite
+  },
   {
     "Hex Grid": hexesOverlay,
     "Loom Road": loomRoadOverlay,
@@ -699,7 +740,7 @@ const layersControl = L.control.layers(
     "Innspiration": innspirationLayer,
     "Hometowns": hometownsLayer
   },
-  { collapsed:false }
+  { collapsed: false }
 ).addTo(map);
 
 function addEditButtonUnderLayersControl(layersControl) {
