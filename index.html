@@ -237,6 +237,31 @@ html, body, #map {
   margin: 6px 0;
 }
 
+/* Make the layers control less wide */
+.leaflet-control-layers {
+  width: 200px;       /* Adjust this to make layer control box larger */
+  max-width: 230px;
+}
+
+/* Allow long labels to wrap instead of forcing width wider */
+.leaflet-control-layers label {
+  white-space: normal;
+  align-items: flex-start;
+}
+
+/* Give the label text area a predictable wrap zone */
+.leaflet-control-layers label span {
+  display: inline-block;
+  max-width: 199px;   /* <-- should be a bit less than control width */
+  line-height: 1.15;
+}
+
+/* Keep checkboxes/radios from shrinking when text wraps */
+.leaflet-control-layers input {
+  flex: 0 0 auto;
+  margin-top: 2px;
+}
+
 /* ---------------- ZOOM CONTROL ---------------- */
 .leaflet-control-zoom {
   background: rgba(0,0,0,0.78);
@@ -305,12 +330,11 @@ html, body, #map {
 
 /* ---------------- COMPASS CONTROL ---------------- */
 .leaflet-control.compass-control {
-  background: rgba(0, 0, 0, 0.199);
-  border-radius: 14px;
-  padding: 10px;
-  box-shadow: 0 10px 30px rgba(0,0,0,0.45);
-  backdrop-filter: blur(6px);
-  color: #f3ead8;
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+  backdrop-filter: none !important;
+  padding: 0 !important;
 }
 
 .compass-wrap {
